@@ -1923,11 +1923,12 @@ def playa_videos():
         items = [it for it in items if not is_broken(it)]
     title = (request.args.get("title") or "").lower()
     if title:
-        # Titel sind bei lokalen Videos oft Hash-Namen; such daher auch in Kategorie und Pfadteilen
+        # Titel sind bei lokalen Videos oft Hash-Namen; such daher auch in Kategorie und Pfadteilen.
+        # Webquellen haben kein "path"-Feld -> .get() statt KeyError.
         items = [it for it in items
-                 if title in it["title"].lower()
+                 if title in (it.get("title") or "").lower()
                  or title in playa_cat(it).lower()
-                 or title in str(it["path"]).lower()]
+                 or title in str(it.get("path") or it.get("url") or it.get("page") or "").lower()]
     inc = {c for c in (request.args.get("included-categories") or "").split(",") if c}
     exc = {c for c in (request.args.get("excluded-categories") or "").split(",") if c}
     if inc:
