@@ -1845,18 +1845,23 @@ def playa_link(it):
 
 
 def playa_video(it, full=False):
-    """VideoListView (in /videos) oder VideoView (in /video/<id>) nach Playa-Schema."""
+    """VideoListView (in /videos) oder VideoView (in /video/<id>) nach Playa-Schema.
+    Die Play-Links müssen in details[].links liegen (VideoView.Details laut API-Doku);
+    ein links-Feld auf der oberen Ebene ignoriert die App -> Play-Button tat nichts."""
     cat = playa_cat(it)
+    link = playa_link(it)
     v = {"id": it["id"], "title": it["title"], "subtitle": cat,
          "release_date": playa_release(it),
          "preview_image": f"{thumb_base()}{thumb_path(it['id'])}",
          "details": [{"type": "full", "duration_seconds": playa_duration(it),
-                      "transparency_mode": 0, "has_scripts": False}],
-         "links": [playa_link(it)]}
+                      "transparency_mode": 0, "has_scripts": False,
+                      "links": [link]}]}
     if full:
         v["description"] = ""
         v["categories"] = [{"id": cat, "title": cat}]
         v["has_scripts"] = False
+        v["transparency"] = {"m": 0}
+        v["views"] = 0
     return v
 
 

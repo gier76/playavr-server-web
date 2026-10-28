@@ -1,5 +1,5 @@
 name: "PlayaVR Server"
-version: "2.0.2"
+version: "2.0.3"
 slug: playavr-server-web
 description: "Eigene VR-Videos, Webseiten und yt-dlp-Quellen für Playa und DeoVR streamen (Meta Quest)"
 arch:
