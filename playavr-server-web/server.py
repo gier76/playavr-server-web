@@ -1867,14 +1867,22 @@ def playa_categories():
 
 
 def playa_paged(items):
-    """Seite nach Playa-Convention: page-index (0-based) und page-size, maximal 100 pro Seite."""
+    """Seite nach Playa-Schema: data ist ein Page<T> (page_index/page_size/page_total/item_total/content).
+    Die App erwartet genau diese Struktur und zeigt sonst 'No videos found'. page-index ist 0-based."""
     try:
         page = max(int(request.args.get("page-index", 0)), 0)
         size = min(max(int(request.args.get("page-size", 20)), 1), 100)
     except ValueError:
         abort(400)
         return playa_rsp([], 400)  # unreachable (abort raises), beruhigt den Typ-Checker
-    return playa_rsp(items[page * size:(page + 1) * size])
+    item_total = len(items)
+    return playa_rsp({
+        "page_index": page,
+        "page_size": size,
+        "page_total": max(1, -(-item_total // size)),  # CeilingDivide wie in der API-Doku
+        "item_total": item_total,
+        "content": items[page * size:(page + 1) * size],
+    })
 
 
 playa_bp = Blueprint("playa", __name__, url_prefix="/api/playa/v2")
@@ -1915,7 +1923,11 @@ def playa_videos():
         items = [it for it in items if not is_broken(it)]
     title = (request.args.get("title") or "").lower()
     if title:
-        items = [it for it in items if title in it["title"].lower()]
+        # Titel sind bei lokalen Videos oft Hash-Namen; such daher auch in Kategorie und Pfadteilen
+        items = [it for it in items
+                 if title in it["title"].lower()
+                 or title in playa_cat(it).lower()
+                 or title in str(it["path"]).lower()]
     inc = {c for c in (request.args.get("included-categories") or "").split(",") if c}
     exc = {c for c in (request.args.get("excluded-categories") or "").split(",") if c}
     if inc:
