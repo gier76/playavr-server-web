@@ -52,8 +52,14 @@ MIMETYPES = {
 UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
 
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
-VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+except OSError as e:
+    print(f"[warn] Cache-Ordner nicht anlegbar: {e}")
+try:
+    VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+except OSError as e:
+    print(f"[warn] Video-Ordner nicht anlegbar (Share nicht da?): {e} — Server startet trotzdem, Videos erscheinen, sobald der Share erreichbar ist")
 
 # ffmpeg, ffprobe und yt-dlp getrennt prüfen
 FFMPEG = shutil.which("ffmpeg")
@@ -313,19 +319,24 @@ def make_id(key: str) -> str:
 
 def _scan_local():
     items = []
-    for p in sorted(VIDEO_DIR.rglob("*")):
-        if p.suffix.lower() in EXTENSIONS and p.is_file():
-            rel = p.relative_to(VIDEO_DIR)
-            cat = rel.parent.name if rel.parent != Path(".") else "Alle Videos"
-            items.append({
-                "id": make_id(rel.as_posix()),
-                "kind": "local",
-                "cat": cat,
-                "title": p.stem.replace("_", " "),
-                "name": p.name,
-                "ext": p.suffix.lower(),
-                "path": p,
-            })
+    try:
+        for p in sorted(VIDEO_DIR.rglob("*")):
+            if p.suffix.lower() in EXTENSIONS and p.is_file():
+                rel = p.relative_to(VIDEO_DIR)
+                cat = rel.parent.name if rel.parent != Path(".") else "Alle Videos"
+                items.append({
+                    "id": make_id(rel.as_posix()),
+                    "kind": "local",
+                    "cat": cat,
+                    "title": p.stem.replace("_", " "),
+                    "name": p.name,
+                    "ext": p.suffix.lower(),
+                    "path": p,
+                })
+    except OSError as e:
+        # Share nicht gemountet / Netzlaufwerk nicht erreichbar: Bibliothek bleibt leer,
+        # der Server läuft weiter und greift den Share beim nächsten Scan auf.
+        print(f"[warn] Video-Scan fehlgeschlagen: {e}")
     return items
 
 
