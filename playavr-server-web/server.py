@@ -1112,14 +1112,37 @@ def refresh_ytdlp(src, name):
     max_height = src.get("max_height")
     cookies = (src.get("cookies") or "").strip() or None
 
-    entries, ytdlp_err = [], None
+    entries, data, ytdlp_err = [], None, []
     try:
         data = run_ytdlp(["--flat-playlist", "-J", "--playlist-end", str(limit), url],
                          timeout=180, cookies=cookies)
         entries = data.get("entries") or [data]
     except Exception as e:
-        ytdlp_err = str(e)
+        ytdlp_err = [str(e)]
     items, seen = [], set()
+    for e in entries:
+        if not e:
+            continue
+        page = e.get("webpage_url") or e.get("url") or (url if e is data else None)
+        # yt-dlp hielt die Listenseite selbst für ein Video (generic/HTML5-Fallback):
+        # kein echter Listeneintrag, Listing-Auslese ist hier besser.
+        if page and urlparse(page).path.rstrip("/") == urlparse(url).path.rstrip("/"):
+            entries_are_videos = False
+            break
+    else:
+        entries_are_videos = bool(entries)
+    if not entries_are_videos:
+        # Die Liste selbst ist kein Video: Links auf Videoseiten sammeln und pro
+        # Detailseite yt-dlp beim Abspielen Auflösen lassen.
+        try:
+            items = scrape_listing(src, name, limit, fmt, max_height, cookies)
+            print(f"[source:{name}] yt-dlp lieferte keine echten Videoseiten "
+                  f"({ytdlp_err[0] if ytdlp_err else 'Listseite als Video interpretiert'}), "
+                  f"{len(items)} Videolinks gesammelt")
+            return items
+        except Exception as e:
+            if ytdlp_err:
+                raise RuntimeError(f"yt-dlp-Liste: {ytdlp_err[0]} | Seitenauswertung: {e}")
     for e in entries:
         if not e:
             continue
